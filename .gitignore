@@ -1,0 +1,40 @@
+# Datos crudos (nunca en git — pueden ser grandes y/o confidenciales)
+data/raw/
+data/processed/
+data/outputs/
+
+# Entornos Python
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb~
+
+# Secrets y credenciales
+*.json
+!infra/*.json
+credentials/
+secrets/
+.earthengine/
+service_account*.json
+gee_credentials*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/

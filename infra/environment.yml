@@ -1,0 +1,41 @@
+name: atlas-uraba
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  # Geoespacial core
+  - geopandas>=0.14
+  - gdal>=3.8
+  - pyproj>=3.6
+  - shapely>=2.0
+  - fiona>=1.9
+  - rasterio>=1.3
+  # Análisis espacial
+  - pysal
+  - esda          # autocorrelación espacial (LISA, Moran)
+  - tobler        # interpolación areal y dasymetría
+  # Red vial y accesibilidad
+  - osmnx>=1.9
+  - networkx>=3.2
+  # Base de datos
+  - psycopg2
+  - sqlalchemy>=2.0
+  - geoalchemy2
+  # Notebooks y exploración
+  - jupyter
+  - jupyterlab
+  - matplotlib
+  - seaborn
+  - contextily    # basemaps en matplotlib
+  # Procesamiento de datos
+  - pandas>=2.0
+  - numpy>=1.26
+  - scipy
+  - scikit-learn  # PCA y normalización
+  - pip:
+    - earthengine-api   # Google Earth Engine
+    - r5py              # matrices de tiempo de viaje multimodal
+    - keplergl          # exportar a Kepler.gl
+    - pandana           # accesibilidad por red (GHSCI)
