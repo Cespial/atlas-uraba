@@ -1,7 +1,30 @@
 # Datos crudos (nunca en git — pueden ser grandes y/o confidenciales)
 data/raw/
-data/processed/
-data/outputs/
+
+# Archivos grandes en processed/ (excluidos por tamaño)
+data/processed/manzanas/MGN_ANM_MANZANA.dbf
+data/processed/manzanas/SHP_MGN2018_INTGRD_MANZ.zip
+data/processed/manzanas/SHP_MGN2018_INTGRD_MPIO.zip
+data/processed/manzanas/INDICADORES_INSUMOS_REBP_CNPV2018-2020.zip
+data/processed/manzanas/20211019_EstructuraPoblacionalREBP2018-2020yCNPV2018.xlsx
+data/processed/manzanas/mgn2024_manzanas_uraba.gpkg
+data/processed/manzanas/cnpv2018_uraba.csv
+data/processed/manzanas/Instructivo_Integracion_MGN_CNPV2018.pdf
+data/processed/manzanas/MGN_ANM_MPIOS.dbf
+data/processed/manzanas/20211019_IndicesDemograficosCNPV2018yREBP2018-2020.xlsx
+data/processed/manzanas/Diccionario_Datos_Niveles_Variables_MGN_CNPV2018Int.xlsx
+data/processed/manzanas/igac_construcciones_uraba.gpkg
+data/processed/manzanas/igac_terrenos_uraba.gpkg
+data/processed/manzanas/igac_manzanas_uraba.gpkg
+
+# Archivos grandes en outputs/
+data/outputs/indicadores/piloto_apartado_atlas.gpkg
+data/outputs/indicadores/piloto_apartado_atlas.geojson
+
+# Secrets y JSON globales (excepciones abajo)
+*.json
+!infra/*.json
+!data/processed/auditoria_osm_uraba.json
 
 # Entornos Python
 .env
@@ -18,8 +41,6 @@ venv/
 *.ipynb~
 
 # Secrets y credenciales
-*.json
-!infra/*.json
 credentials/
 secrets/
 .earthengine/

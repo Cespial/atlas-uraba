@@ -1,20 +1,34 @@
 """
-Carga de datos del catastro multipropósito IGAC para Urabá.
+Carga de datos de la Base Catastral Pública IGAC 2026 para Urabá.
 
 Fuente:
-  - IGAC Catastro Multipropósito: https://www.igac.gov.co/es/contenido/areas-estrategicas/catastro-multiproposito
-  - Descarga manual de shapefiles por municipio (predios y edificaciones).
+  - IGAC Base Catastral 2026: https://datos.icde.gov.co/datasets/2e26ee016ce14c359a5037231da25a86
+  - Descarga: wget -L '<url_arcgis_rest>' -O CatastroPublicoIGAC_2026.zip
 
-Columnas clave esperadas en el shapefile de predios IGAC:
-  NUPRE            → Número predial único (string 30 dígitos)
-  AREA_TERR        → Área de terreno en m²
-  USO_SUELO        → Código de uso del suelo (residencial, comercial, etc.)
-  MUNICIPIO_CODIGO → Código DIVIPOLA del municipio (5 dígitos)
+ADVERTENCIA — CATASTRO DESCENTRALIZADO:
+  Antioquia (y Bogotá, Medellín, Cali) maneja su propio catastro descentralizado
+  y NO está incluido en la descarga nacional del IGAC. La capa IGAC 2026 cubre
+  únicamente los departamentos bajo jurisdicción directa del IGAC.
+  Para Urabá/Antioquia se requiere catastro de la Gobernación de Antioquia o
+  del municipio (Lonja de Propiedad Raíz / CATASTRO ANTIOQUIA).
 
-Columnas clave esperadas en la capa de edificaciones:
-  NUPRE            → Número predial para join con predios
-  AREA_CONST       → Área construida en m²
-  PISOS            → Número de pisos
+Capas disponibles en la descarga IGAC 2026:
+  U_MANZANA      → Manzanas urbanas (polígonos)
+  U_TERRENO      → Terrenos urbanos / predios urbanos (polígonos)
+  U_CONSTRUCCION → Construcciones urbanas (polígonos)
+  R_VEREDA       → Veredas rurales (polígonos)
+  R_TERRENO      → Terrenos rurales / predios rurales (polígonos)
+  R_SECTOR       → Sectores rurales (polígonos)
+
+Columnas reales confirmadas (Base Catastral 2026):
+  codigo_mun  → Código DIVIPOLA del municipio (string 5 dígitos, ej: "05045")
+  (U_TERRENO) → columnas específicas de terreno; ver _COLS_U_TERRENO
+  (U_MANZANA) → columnas específicas de manzana; ver _COLS_U_MANZANA
+
+Columnas clave esperadas en la capa de edificaciones (U_CONSTRUCCION):
+  NUPRE       → Número predial para join con predios
+  AREA_CONST  → Área construida en m²
+  PISOS       → Número de pisos
 """
 from __future__ import annotations
 
@@ -25,66 +39,73 @@ import pandas as pd
 
 DIVIPOLA_URABA = ["05045", "05147", "05120", "05837", "05544", "05665", "05659", "05051"]
 
-# Columnas mínimas requeridas
-COLS_PREDIOS      = {"NUPRE", "AREA_TERR", "USO_SUELO", "MUNICIPIO_CODIGO"}
+# Columna de código municipal real en la Base Catastral IGAC 2026
+_COL_MUNICIPIO_IGAC = "codigo_mun"  # string 5 dígitos, ej: "05045"
+
+# Columnas mínimas requeridas por capa
+_COLS_U_TERRENO    = {_COL_MUNICIPIO_IGAC}          # mínimo; hay más según versión
+_COLS_U_MANZANA    = {_COL_MUNICIPIO_IGAC}          # mínimo
+COLS_PREDIOS       = {"NUPRE", "AREA_TERR", "USO_SUELO", "MUNICIPIO_CODIGO"}  # esquema legado
 COLS_EDIFICACIONES = {"NUPRE", "AREA_CONST", "PISOS"}
 
 
-def cargar_predios(path: Path) -> gpd.GeoDataFrame:
+def cargar_predios(path: Path, capa: str = "U_TERRENO") -> gpd.GeoDataFrame:
     """
-    Lee el shapefile de predios IGAC y filtra por municipios de Urabá.
+    Lee la capa U_TERRENO (predios urbanos) de la Base Catastral IGAC 2026 y filtra
+    por municipios de Urabá.
 
-    Estandariza los nombres de columna a mayúsculas y verifica que estén
-    presentes las columnas requeridas. Retorna en CRS EPSG:4326.
+    NOTA: Antioquia NO está incluida en la descarga nacional del IGAC (catastro
+    descentralizado). Esta función es funcional para los departamentos bajo
+    jurisdicción IGAC. Para Urabá/Antioquia se requiere el catastro departamental.
+
+    La columna de código municipal real en IGAC 2026 es 'codigo_mun' (string 5 dígitos).
+    Se mapea a 'MUNICIPIO_CODIGO' para compatibilidad con el resto del pipeline.
 
     Args:
-        path: Ruta al shapefile (.shp) o GeoPackage (.gpkg) de predios IGAC.
+        path: Ruta al shapefile (.shp) o GeoPackage (.gpkg) de la Base Catastral IGAC.
+        capa: Nombre de la capa a leer si el archivo es multi-capa (default: 'U_TERRENO').
 
     Returns:
-        GeoDataFrame de predios de Urabá con columnas:
-            NUPRE, AREA_TERR, USO_SUELO, MUNICIPIO_CODIGO, geometry
+        GeoDataFrame de predios/terrenos de Urabá con columna 'MUNICIPIO_CODIGO' (5d).
         CRS: EPSG:4326.
 
     Raises:
         FileNotFoundError: si el archivo no existe.
-        AssertionError:    si faltan columnas requeridas.
         ValueError:        si el GeoDataFrame queda vacío tras filtrar por Urabá.
     """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(
             f"[igac] Archivo de predios no encontrado: {path}\n"
-            "Descarga el shapefile desde el portal de IGAC Catastro Multipropósito."
+            "IMPORTANTE: Antioquia tiene catastro descentralizado y NO está en la\n"
+            "descarga nacional IGAC. Ver docs/metodologia/fuentes_verificadas.md\n"
+            "sección 'IGAC: Antioquia requiere catastro departamental'."
         )
 
-    print(f"[igac] Cargando predios desde {path}...")
-    gdf = gpd.read_file(path)
+    print(f"[igac] Cargando capa '{capa}' desde {path}...")
+    try:
+        gdf = gpd.read_file(path, layer=capa)
+    except Exception:
+        # Si el archivo no es multi-capa (shapefile simple), leer sin especificar capa
+        gdf = gpd.read_file(path)
 
-    # Normalizar columnas a mayúsculas
-    gdf.columns = [c.upper() for c in gdf.columns]
-
-    # Detectar columna de código municipal (puede llamarse diferente)
-    col_municipio = _detectar_columna_municipio(gdf)
-    if col_municipio != "MUNICIPIO_CODIGO":
-        gdf = gdf.rename(columns={col_municipio: "MUNICIPIO_CODIGO"})
+    # La columna real en IGAC 2026 es 'codigo_mun' (minúsculas, string 5d)
+    col_mun = _detectar_columna_municipio(gdf)
+    if col_mun != "MUNICIPIO_CODIGO":
+        gdf = gdf.rename(columns={col_mun: "MUNICIPIO_CODIGO"})
 
     gdf["MUNICIPIO_CODIGO"] = gdf["MUNICIPIO_CODIGO"].astype(str).str.zfill(5)
-
-    cols_faltantes = COLS_PREDIOS - set(gdf.columns)
-    assert not cols_faltantes, (
-        f"[igac] Faltan columnas en predios: {cols_faltantes}. "
-        f"Columnas disponibles: {list(gdf.columns)}"
-    )
 
     gdf_uraba = gdf[gdf["MUNICIPIO_CODIGO"].isin(DIVIPOLA_URABA)].copy()
 
     if gdf_uraba.empty:
         raise ValueError(
             "[igac] No se encontraron predios para los municipios de Urabá. "
-            f"Verifica que MUNICIPIO_CODIGO contenga códigos DIVIPOLA: {DIVIPOLA_URABA}"
+            f"Verifica que 'codigo_mun' contenga códigos DIVIPOLA: {DIVIPOLA_URABA}\n"
+            "RECORDATORIO: Antioquia no está en la descarga nacional IGAC."
         )
 
-    print(f"[igac] {len(gdf_uraba)} predios cargados para Urabá.")
+    print(f"[igac] {len(gdf_uraba)} registros ({capa}) cargados para Urabá.")
 
     if gdf_uraba.crs is None:
         print("[igac] ADVERTENCIA: shapefile sin CRS. Asumiendo EPSG:4326.")
@@ -93,6 +114,30 @@ def cargar_predios(path: Path) -> gpd.GeoDataFrame:
         gdf_uraba = gdf_uraba.to_crs("EPSG:4326")
 
     return gdf_uraba
+
+
+def cargar_manzanas_igac(path: Path) -> gpd.GeoDataFrame:
+    """
+    Lee la capa U_MANZANA de la Base Catastral IGAC 2026 y filtra por Urabá.
+
+    La capa U_MANZANA contiene polígonos de manzanas urbanas con columna
+    'codigo_mun' (string 5 dígitos) como identificador municipal.
+
+    NOTA: Antioquia NO está incluida en la descarga nacional del IGAC.
+    Esta función aplica solo a departamentos bajo jurisdicción IGAC directa.
+
+    Args:
+        path: Ruta al shapefile (.shp) o GeoPackage (.gpkg) de la Base Catastral IGAC.
+
+    Returns:
+        GeoDataFrame de manzanas urbanas de Urabá con columna 'MUNICIPIO_CODIGO'.
+        CRS: EPSG:4326.
+
+    Raises:
+        FileNotFoundError: si el archivo no existe.
+        ValueError:        si no hay manzanas para Urabá.
+    """
+    return cargar_predios(path, capa="U_MANZANA")
 
 
 def cargar_edificaciones(path: Path) -> gpd.GeoDataFrame:
@@ -228,14 +273,24 @@ def join_predios_manzanas(
 def _detectar_columna_municipio(gdf: gpd.GeoDataFrame) -> str:
     """
     Detecta el nombre de la columna de código municipal entre variantes comunes.
+
+    En la Base Catastral IGAC 2026 la columna real es 'codigo_mun' (minúsculas).
+    Se incluye primero en la lista de candidatos.
     """
     candidatos = [
+        # IGAC 2026 real (minúsculas)
+        "codigo_mun",
+        # Variantes en mayúsculas / legado
         "MUNICIPIO_CODIGO", "COD_MPIO", "MPIO_CDPMP", "COD_MUNICIPIO",
         "DIVIPOLA", "CODIGO_MUNICIPIO", "MUNICIPIO",
     ]
+    # Buscar en columnas originales (case-sensitive) y también en minúsculas
+    cols_lower = {c.lower(): c for c in gdf.columns}
     for c in candidatos:
         if c in gdf.columns:
             return c
+        if c.lower() in cols_lower:
+            return cols_lower[c.lower()]
     raise KeyError(
         f"[igac] No se encontró columna de código municipal. "
         f"Columnas disponibles: {list(gdf.columns)}. "

@@ -1,0 +1,74 @@
+{
+  "Apartadó": {
+    "nodos": 2995,
+    "aristas": 8648,
+    "long_km": 946.2,
+    "intersecciones": 2492,
+    "densidad_intersecciones_por_km": 2.63,
+    "equipamientos_osm": 189,
+    "estado": "ok"
+  },
+  "Chigorodó": {
+    "nodos": 1430,
+    "aristas": 4054,
+    "long_km": 943.0,
+    "intersecciones": 1094,
+    "densidad_intersecciones_por_km": 1.16,
+    "equipamientos_osm": 75,
+    "estado": "ok"
+  },
+  "Carepa": {
+    "nodos": 1508,
+    "aristas": 4176,
+    "long_km": 714.0,
+    "intersecciones": 1165,
+    "densidad_intersecciones_por_km": 1.63,
+    "equipamientos_osm": 45,
+    "estado": "ok"
+  },
+  "Turbo": {
+    "nodos": 7680,
+    "aristas": 19164,
+    "long_km": 4813.5,
+    "intersecciones": 5267,
+    "densidad_intersecciones_por_km": 1.09,
+    "equipamientos_osm": 230,
+    "estado": "ok"
+  },
+  "Necoclí": {
+    "nodos": 4931,
+    "aristas": 11580,
+    "long_km": 3139.2,
+    "intersecciones": 3128,
+    "densidad_intersecciones_por_km": 1.0,
+    "equipamientos_osm": 136,
+    "estado": "ok"
+  },
+  "San Pedro de Urabá": {
+    "nodos": 952,
+    "aristas": 2418,
+    "long_km": 899.1,
+    "intersecciones": 677,
+    "densidad_intersecciones_por_km": 0.75,
+    "equipamientos_osm": 119,
+    "estado": "ok"
+  },
+  "San Juan de Urabá": {
+    "nodos": 699,
+    "aristas": 1694,
+    "long_km": 496.9,
+    "intersecciones": 459,
+    "densidad_intersecciones_por_km": 0.92,
+    "equipamientos_osm": 44,
+    "estado": "ok"
+  },
+  "Arboletes": {
+    "nodos": 953,
+    "aristas": 2614,
+    "long_km": 748.5,
+    "intersecciones": 733,
+    "densidad_intersecciones_por_km": 0.98,
+    "equipamientos_osm": 96,
+    "estado": "ok"
+  }
+}

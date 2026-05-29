@@ -14,13 +14,33 @@
 
 ## A. IGAC — Catastro
 
+### ⚠️ IGAC: Antioquia requiere catastro departamental (CONFIRMADO)
+
+> Antioquia opera un catastro descentralizado y **NO está incluida** en la
+> descarga nacional de la Base Catastral Pública IGAC 2026. Lo mismo aplica
+> para Bogotá D.C., Medellín y Cali.
+>
+> La descarga IGAC 2026 cubre únicamente los departamentos bajo jurisdicción
+> directa del IGAC. Para Urabá/Antioquia se debe gestionar el catastro a través
+> de la Gobernación de Antioquia o la Lonja de Propiedad Raíz local.
+>
+> **Capas disponibles en la descarga IGAC 2026** (confirmadas):
+> - `U_MANZANA` — manzanas urbanas
+> - `U_TERRENO` — terrenos/predios urbanos
+> - `U_CONSTRUCCION` — construcciones urbanas
+> - `R_VEREDA` — veredas rurales
+> - `R_TERRENO` — terrenos/predios rurales
+> - `R_SECTOR` — sectores rurales
+>
+> **Columna de código municipal real**: `codigo_mun` (string 5 dígitos, ej: `"05045"`)
+
 ### Base Catastral Pública IGAC 2026 ✅ 3-0
 - **Portal**: https://datos.icde.gov.co/datasets/2e26ee016ce14c359a5037231da25a86
 - **Descarga**: `wget -L 'https://www.arcgis.com/sharing/rest/content/items/2e26ee016ce14c359a5037231da25a86/data' -O CatastroPublicoIGAC_2026.zip`
 - **Formato**: Shapefile en ZIP (tamaño real desconocido — claim de 2.92 GB REFUTADO)
 - **Licencia**: CC BY-SA 4.0 — libre
 - **Nota**: La URL S3 a la que redirige expira en 5 min; usar el endpoint ArcGIS REST como referencia estable
-- **Cobertura Urabá**: Nacional — incluye municipios IGAC; verificar que Apartadó/otros no tengan catastro descentralizado
+- **Cobertura Urabá**: ❌ Antioquia NO incluida (catastro descentralizado) — ver nota arriba
 
 ### IGAC SharePoint departamental ⚠️ 2-1
 - **URL**: https://igacoffice365.sharepoint.com/:f:/g/El_cx99zlE5FrMda2G7Ff9oB8nRia9fawp_SoYlLixSHNA?e=ewJbmZ
@@ -64,26 +84,34 @@
 
 ## C. MinSalud — REPS
 
-### REPS Prestadores de Salud ✅ 3-0
+### REPS Prestadores de Salud ✅ 3-0 — GEOCODIFICADO
 - **Portal**: https://www.datos.gov.co/Salud-y-Protecci-n-Social/Registro-Especial-de-Prestadores-y-Sedes-de-Servic/c36g-9fc2
 - **Descarga directa CSV**: `wget 'https://www.datos.gov.co/api/views/c36g-9fc2/rows.csv?accessType=DOWNLOAD'`
-- **Socrata API (filtrado)**: `https://www.datos.gov.co/resource/c36g-9fc2.csv?$where=depa_nombre='ANTIOQUIA'&$limit=50000`
-- **Registros**: 76,821 prestadores Colombia
+- **Registros Urabá**: 339 prestadores confirmados
+  - Apartadó: 196 · Turbo: 79 · Chigorodó: 32 · resto: ~32
 - **Formato**: CSV
-- **⚠️ SIN coordenadas geográficas** — requiere geocodificación posterior
-- **Script**: `python scripts/geocode_equipamientos.py reps`
+- **Columnas reales**: `CodigoPrestador`, `NombrePrestador`, `NombreSede`,
+  `MunicipioPrestador` (5d), `DepartamentoPrestadorDesc`, `DireccionPrestador`,
+  `ClasePrestador`, `NivelAtencion`
+- **SIN coordenadas geográficas** — geocodificados por dirección
+- **Archivo filtrado Urabá**: `data/processed/equipamientos/reps_uraba.csv`
+- **Geocodificado**: `data/processed/equipamientos/reps_uraba_geo.gpkg` ✅
 
 ---
 
 ## D. MEN — SIMAT
 
-### Establecimientos Educativos Colombia ✅ 3-0
+### Establecimientos Educativos Colombia ✅ 3-0 — GEOCODIFICADO
 - **Portal**: https://www.datos.gov.co/Educaci-n/ESTABLECIMIENTOS-EDUCATIVOS-COLOMBIA/upkm-vdjb
 - **Descarga directa CSV**: `wget 'https://www.datos.gov.co/api/views/upkm-vdjb/rows.csv?accessType=DOWNLOAD'`
+- **Registros Urabá**: 180 establecimientos confirmados (datos 2016)
 - **Formato**: CSV
-- **⚠️ SIN coordenadas** — requiere geocodificación
-- **⚠️ Datos de 2016-2019** — pueden estar desactualizados
-- **Script**: `python scripts/geocode_equipamientos.py simat`
+- **Columnas reales**: `año`, `codigomunicipio`, `nombreestablecimiento`, `zona`,
+  `direccion`, `niveles`, `matricula_Contratada`
+- **SIN coordenadas** — geocodificados por dirección
+- **⚠️ Datos de 2016** — pueden estar desactualizados
+- **⚠️ Sin desglose de matrícula por nivel** — solo `matricula_Contratada` como proxy
+- **Geocodificado**: `data/processed/equipamientos/simat_uraba_geo.gpkg` ✅
 
 ---
 

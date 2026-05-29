@@ -3,16 +3,25 @@ Carga del REPS (Registro Especial de Prestadores de Servicios de Salud) de MinSa
 
 Fuente:
   - Ministerio de Salud y Protección Social — REPS
-  - Descarga: https://www.sispro.gov.co/Pages/Home.aspx  (Sección REPS)
-  - Alternativa datos.gov.co: https://www.datos.gov.co/
+  - Descarga: https://www.datos.gov.co/resource/c36g-9fc2.csv
+  - Filtrado Urabá ya procesado: data/processed/equipamientos/reps_uraba.csv
+  - Geocodificado: data/processed/equipamientos/reps_uraba_geo.gpkg
 
-Columnas clave esperadas en el CSV del REPS:
-  nombre_prestador    → Nombre del establecimiento de salud
-  codigo_municipio    → Código DIVIPOLA del municipio (puede ser 5 dígitos)
-  departamento        → Nombre del departamento (para filtrar Antioquia)
-  latitud             → Latitud WGS84 (decimal)
-  longitud            → Longitud WGS84 (decimal)
-  nivel_atencion      → Nivel de complejidad: '1', '2' o '3'
+Columnas reales del CSV REPS (confirmadas en descarga):
+  CodigoPrestador          → ID único del prestador
+  NombrePrestador          → Nombre del prestador/institución
+  NombreSede               → Nombre de la sede
+  MunicipioPrestador       → Código DIVIPOLA del municipio (5 dígitos string)
+  DepartamentoPrestadorDesc→ Nombre del departamento
+  DireccionPrestador       → Dirección postal
+  ClasePrestador           → Clase: IPS, Profesional independiente, etc.
+  NivelAtencion            → Nivel de complejidad: '1', '2' o '3' (o texto)
+
+Cobertura Urabá verificada: 339 prestadores
+  Apartadó: 196 · Turbo: 79 · Chigorodó: 32 · resto: ~32
+
+Nota: el REPS NO incluye coordenadas geográficas. Los 339 prestadores de Urabá
+fueron geocodificados por dirección y guardados en reps_uraba_geo.gpkg.
 
 Niveles de atención:
   1 = Primario  (puestos de salud, centros de salud sin internación)
@@ -35,13 +44,26 @@ from shapely.geometry import Point
 
 DIVIPOLA_URABA = ["05045", "05147", "05120", "05837", "05544", "05665", "05659", "05051"]
 
+# Rutas procesadas (relativas a la raíz del proyecto)
+_REPS_CSV_PROCESADO = "data/processed/equipamientos/reps_uraba.csv"
+_REPS_GEO_GPKG      = "data/processed/equipamientos/reps_uraba_geo.gpkg"
+
 # Nombres de columna aceptados (REPS cambia encabezados entre versiones)
-_ALIAS_NOMBRE    = ["nombre_prestador", "nombre_sede", "nombre_ips", "razon_social"]
-_ALIAS_MUNICIPIO = ["codigo_municipio", "cod_municipio", "municipio_codigo", "mpio_cdpmp", "divipola"]
-_ALIAS_DEPTO     = ["departamento", "nombre_departamento", "depto"]
+# Columnas reales REPS descarga MinSalud: CodigoPrestador, NombrePrestador,
+# NombreSede, MunicipioPrestador, DepartamentoPrestadorDesc,
+# DireccionPrestador, ClasePrestador, NivelAtencion
+_ALIAS_ID        = ["codigoprestador", "codigo_prestador", "id_prestador"]
+_ALIAS_NOMBRE    = ["nombreprestador", "nombre_prestador", "nombresede", "nombre_sede",
+                    "nombre_ips", "razon_social"]
+_ALIAS_SEDE      = ["nombresede", "nombre_sede"]
+_ALIAS_MUNICIPIO = ["municipioprestador", "codigo_municipio", "cod_municipio",
+                    "municipio_codigo", "mpio_cdpmp", "divipola"]
+_ALIAS_DEPTO     = ["departamentoprestadordesc", "departamento", "nombre_departamento", "depto"]
+_ALIAS_DIRECCION = ["direccionprestador", "direccion", "direccion_prestador"]
+_ALIAS_CLASE     = ["claseprestador", "clase_prestador", "tipo_prestador"]
+_ALIAS_NIVEL     = ["nivelatencion", "nivel_atencion", "nivel", "nivel_complejidad"]
 _ALIAS_LAT       = ["latitud", "lat", "latitude"]
 _ALIAS_LON       = ["longitud", "lon", "lng", "longitude"]
-_ALIAS_NIVEL     = ["nivel_atencion", "nivel", "nivel_complejidad"]
 
 # m² estimados por nivel de atención
 CAPACIDAD_M2 = {
@@ -50,120 +72,169 @@ CAPACIDAD_M2 = {
     "3": 3000,
 }
 
-COLS_REQUERIDAS = {"nombre_prestador", "codigo_municipio", "latitud", "longitud", "nivel_atencion"}
+# Columnas mínimas requeridas para el flujo de datos (sin coordenadas, se geocodifica aparte)
+COLS_REQUERIDAS_CSV = {"nombre_prestador", "codigo_municipio"}
+COLS_REQUERIDAS_GEO = {"nombre_prestador", "codigo_municipio", "latitud", "longitud"}
 
 
-def cargar_reps(path: Path) -> gpd.GeoDataFrame:
+def cargar_reps(path: Optional[Path] = None) -> pd.DataFrame:
     """
-    Lee el CSV del REPS, filtra por Antioquia y municipios de Urabá, y geocodifica.
+    Lee el CSV del REPS ya filtrado para Urabá (339 prestadores).
 
-    Estandariza los nombres de columna usando alias conocidos, filtra registros
-    sin coordenadas válidas y crea geometrías Point (lon, lat).
+    Usa preferentemente el archivo procesado en data/processed/equipamientos/reps_uraba.csv
+    que ya contiene solo los prestadores de Urabá. Si se pasa 'path' al CSV nacional
+    completo, filtra por municipios de Urabá y normaliza columnas.
+
+    Columnas reales del REPS MinSalud:
+      CodigoPrestador, NombrePrestador, NombreSede, MunicipioPrestador (5d),
+      DepartamentoPrestadorDesc, DireccionPrestador, ClasePrestador, NivelAtencion
+
+    Tras normalización devuelve columnas estandarizadas:
+      codigo_prestador, nombre_prestador, nombre_sede, codigo_municipio,
+      departamento, direccion, clase_prestador, nivel_atencion
+
+    NOTA: El REPS no incluye coordenadas. Usar cargar_reps_geocodificado() para
+    obtener el GeoDataFrame con geometrías.
 
     Args:
-        path: Ruta al CSV del REPS descargado de MinSalud / datos.gov.co.
+        path: Ruta al CSV del REPS (nacional o pre-filtrado Urabá).
+              Si es None usa _REPS_CSV_PROCESADO.
 
     Returns:
-        GeoDataFrame con columnas:
-            nombre_prestador, codigo_municipio, latitud, longitud,
-            nivel_atencion, geometry
-        CRS: EPSG:4326.
+        DataFrame con 339 prestadores de Urabá y columnas normalizadas.
 
     Raises:
         FileNotFoundError: si el archivo no existe.
-        AssertionError:    si faltan columnas requeridas tras normalización.
         ValueError:        si no hay registros para Urabá.
     """
+    if path is None:
+        path = Path(_REPS_CSV_PROCESADO)
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(
             f"[minsal] Archivo REPS no encontrado: {path}\n"
-            "Descarga el CSV del REPS desde https://www.sispro.gov.co/"
+            "CSV procesado esperado en data/processed/equipamientos/reps_uraba.csv\n"
+            "Descarga nacional: wget 'https://www.datos.gov.co/api/views/c36g-9fc2/rows.csv?accessType=DOWNLOAD'"
         )
 
     print(f"[minsal] Cargando REPS desde {path}...")
     df = pd.read_csv(path, encoding="utf-8-sig", low_memory=False)
 
-    # Normalizar encabezados
+    # Normalizar encabezados (strip + lowercase para detectar alias)
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-    df = _renombrar_alias(df, _ALIAS_NOMBRE,    "nombre_prestador")
-    df = _renombrar_alias(df, _ALIAS_MUNICIPIO, "codigo_municipio")
-    df = _renombrar_alias(df, _ALIAS_DEPTO,     "departamento")
-    df = _renombrar_alias(df, _ALIAS_LAT,       "latitud")
-    df = _renombrar_alias(df, _ALIAS_LON,       "longitud")
-    df = _renombrar_alias(df, _ALIAS_NIVEL,     "nivel_atencion")
 
-    cols_faltantes = COLS_REQUERIDAS - set(df.columns)
+    # Mapear columnas reales del REPS a nombres estándar
+    df = _renombrar_alias(df, _ALIAS_ID,        "codigo_prestador")
+    df = _renombrar_alias(df, _ALIAS_NOMBRE,     "nombre_prestador")
+    df = _renombrar_alias(df, _ALIAS_SEDE,       "nombre_sede")
+    df = _renombrar_alias(df, _ALIAS_MUNICIPIO,  "codigo_municipio")
+    df = _renombrar_alias(df, _ALIAS_DEPTO,      "departamento")
+    df = _renombrar_alias(df, _ALIAS_DIRECCION,  "direccion")
+    df = _renombrar_alias(df, _ALIAS_CLASE,      "clase_prestador")
+    df = _renombrar_alias(df, _ALIAS_NIVEL,      "nivel_atencion")
+
+    cols_faltantes = COLS_REQUERIDAS_CSV - set(df.columns)
     assert not cols_faltantes, (
         f"[minsal] Faltan columnas en el CSV: {cols_faltantes}. "
         f"Columnas disponibles: {list(df.columns)}"
     )
 
-    # Filtrar por departamento Antioquia (si la columna existe)
-    if "departamento" in df.columns:
-        df = df[df["departamento"].str.upper().str.contains("ANTIOQUIA", na=False)]
-        print(f"[minsal]   {len(df)} registros en Antioquia.")
-
-    # Filtrar por municipios de Urabá
+    # Filtrar por municipios de Urabá (solo si el CSV es el nacional completo)
     df["codigo_municipio"] = df["codigo_municipio"].astype(str).str.zfill(5)
     df_uraba = df[df["codigo_municipio"].isin(DIVIPOLA_URABA)].copy()
 
     if df_uraba.empty:
         raise ValueError(
             "[minsal] No se encontraron prestadores para los municipios de Urabá. "
-            f"Verifica codigo_municipio. Esperados: {DIVIPOLA_URABA}"
+            f"Verifica MunicipioPrestador/codigo_municipio. Esperados: {DIVIPOLA_URABA}"
         )
 
-    # Geocodificar
-    df_uraba["latitud"]  = pd.to_numeric(df_uraba["latitud"],  errors="coerce")
-    df_uraba["longitud"] = pd.to_numeric(df_uraba["longitud"], errors="coerce")
-
-    n_antes = len(df_uraba)
-    df_uraba = df_uraba.dropna(subset=["latitud", "longitud"])
-    n_descartados = n_antes - len(df_uraba)
-    if n_descartados:
-        print(f"[minsal]   ADVERTENCIA: {n_descartados} registros descartados por coordenadas nulas.")
-
-    geometrias = [Point(lon, lat) for lon, lat in zip(df_uraba["longitud"], df_uraba["latitud"])]
-    gdf = gpd.GeoDataFrame(df_uraba, geometry=geometrias, crs="EPSG:4326")
-
-    # Normalizar nivel_atencion a string limpio
-    gdf["nivel_atencion"] = gdf["nivel_atencion"].astype(str).str.strip()
-
-    print(f"[minsal] {len(gdf)} prestadores cargados para Urabá.")
-    return gdf
+    print(f"[minsal] {len(df_uraba)} prestadores REPS cargados para Urabá.")
+    return df_uraba
 
 
-def clasificar_nivel(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def cargar_reps_geocodificado(path: Optional[Path] = None) -> gpd.GeoDataFrame:
     """
-    Agrega la columna 'es_intercomunal' marcando hospitales/clínicas de alta complejidad.
+    Lee el GeoPackage del REPS ya geocodificado por dirección para Urabá.
 
-    Un prestador es intercomunal (nivel 3) si tiene nivel_atencion == '3',
-    lo que implica que sirve a una población mayor que el municipio donde se ubica.
+    El archivo reps_uraba_geo.gpkg contiene los 339 prestadores de Urabá con
+    coordenadas obtenidas mediante geocodificación por dirección postal.
 
     Args:
-        gdf: GeoDataFrame retornado por cargar_reps().
+        path: Ruta al GeoPackage. Si es None usa _REPS_GEO_GPKG.
 
     Returns:
-        El mismo GeoDataFrame con columna adicional:
-            es_intercomunal → bool (True si nivel_atencion == '3')
+        GeoDataFrame con 339 prestadores y columna geometry (Point).
+        CRS: EPSG:4326.
 
     Raises:
-        AssertionError: si 'nivel_atencion' no está en el GeoDataFrame.
+        FileNotFoundError: si el archivo no existe.
     """
-    assert "nivel_atencion" in gdf.columns, (
-        "[minsal] El GeoDataFrame debe tener columna 'nivel_atencion'. "
-        "Usa cargar_reps() primero."
-    )
+    if path is None:
+        path = Path(_REPS_GEO_GPKG)
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"[minsal] GeoPackage REPS geocodificado no encontrado: {path}\n"
+            "Ejecuta: python scripts/geocode_equipamientos.py reps"
+        )
 
-    gdf = gdf.copy()
-    gdf["es_intercomunal"] = gdf["nivel_atencion"].astype(str).str.strip() == "3"
-    n_intercomunal = gdf["es_intercomunal"].sum()
-    print(f"[minsal] {n_intercomunal} prestadores nivel 3 (intercomunal) identificados.")
+    print(f"[minsal] Cargando REPS geocodificado desde {path}...")
+    gdf = gpd.read_file(path)
+
+    if gdf.crs is None:
+        gdf = gdf.set_crs("EPSG:4326")
+    else:
+        gdf = gdf.to_crs("EPSG:4326")
+
+    print(f"[minsal] {len(gdf)} prestadores geocodificados cargados.")
     return gdf
 
 
-def calcular_capacidad_m2(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def clasificar_nivel(df: "pd.DataFrame | gpd.GeoDataFrame") -> "pd.DataFrame | gpd.GeoDataFrame":
+    """
+    Agrega la columna 'es_intercomunal' marcando prestadores de alta complejidad.
+
+    Un prestador es intercomunal (nivel 3) si NivelAtencion == '3' o si
+    ClasePrestador indica alta complejidad. Se acepta tanto DataFrame como
+    GeoDataFrame (retornados por cargar_reps() o cargar_reps_geocodificado()).
+
+    Columnas consultadas (por orden de prioridad):
+      1. 'nivel_atencion'  → valor '3' = alta complejidad
+      2. 'clase_prestador' → texto libre (fallback si no hay nivel_atencion)
+
+    Args:
+        df: DataFrame o GeoDataFrame con columna 'nivel_atencion' y/o 'clase_prestador'.
+
+    Returns:
+        El mismo objeto con columna adicional:
+            es_intercomunal → bool (True si nivel 3 / alta complejidad)
+
+    Raises:
+        AssertionError: si no existe ninguna de las columnas consultadas.
+    """
+    tiene_nivel = "nivel_atencion" in df.columns
+    tiene_clase = "clase_prestador" in df.columns
+    assert tiene_nivel or tiene_clase, (
+        "[minsal] Se requiere columna 'nivel_atencion' o 'clase_prestador'. "
+        "Usa cargar_reps() o cargar_reps_geocodificado() primero."
+    )
+
+    df = df.copy()
+    if tiene_nivel:
+        df["es_intercomunal"] = df["nivel_atencion"].astype(str).str.strip() == "3"
+    else:
+        # Fallback: buscar indicadores de alta complejidad en clase_prestador
+        df["es_intercomunal"] = df["clase_prestador"].astype(str).str.upper().str.contains(
+            "HOSPITAL|CLINICA|ALTA COMPLEJIDAD", na=False
+        )
+
+    n_intercomunal = df["es_intercomunal"].sum()
+    print(f"[minsal] {n_intercomunal} prestadores nivel 3 (intercomunal) identificados.")
+    return df
+
+
+def calcular_capacidad_m2(df: "pd.DataFrame | gpd.GeoDataFrame") -> "pd.DataFrame | gpd.GeoDataFrame":
     """
     Agrega columna 'capacidad_m2' con estimación de área física por tipo de prestador.
 
@@ -173,24 +244,26 @@ def calcular_capacidad_m2(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
       Nivel 3 (terciario): 3 000 m²
 
     Si el nivel no corresponde a 1, 2 o 3, se asigna 200 m² (mínimo).
+    Acepta tanto DataFrame (cargar_reps) como GeoDataFrame (cargar_reps_geocodificado).
 
     Args:
-        gdf: GeoDataFrame retornado por cargar_reps() (con columna nivel_atencion).
+        df: DataFrame o GeoDataFrame con columna 'nivel_atencion'.
 
     Returns:
-        El mismo GeoDataFrame con columna adicional:
+        El mismo objeto con columna adicional:
             capacidad_m2 → int, área estimada en m²
 
     Raises:
-        AssertionError: si 'nivel_atencion' no está en el GeoDataFrame.
+        AssertionError: si 'nivel_atencion' no está en el objeto.
     """
-    assert "nivel_atencion" in gdf.columns, (
-        "[minsal] El GeoDataFrame debe tener columna 'nivel_atencion'."
+    assert "nivel_atencion" in df.columns, (
+        "[minsal] Se requiere columna 'nivel_atencion'. "
+        "Usa cargar_reps() o cargar_reps_geocodificado() primero."
     )
 
-    gdf = gdf.copy()
-    gdf["capacidad_m2"] = (
-        gdf["nivel_atencion"]
+    df = df.copy()
+    df["capacidad_m2"] = (
+        df["nivel_atencion"]
         .astype(str)
         .str.strip()
         .map(CAPACIDAD_M2)
@@ -198,12 +271,12 @@ def calcular_capacidad_m2(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         .astype(int)
     )
 
-    resumen = gdf.groupby("nivel_atencion")["capacidad_m2"].agg(["count", "sum"])
+    resumen = df.groupby("nivel_atencion")["capacidad_m2"].agg(["count", "sum"])
     print("[minsal] Capacidad estimada por nivel:")
     for nivel, row in resumen.iterrows():
         print(f"         Nivel {nivel}: {int(row['count'])} prestadores → {int(row['sum']):,} m² totales")
 
-    return gdf
+    return df
 
 
 # ---------------------------------------------------------------------------
