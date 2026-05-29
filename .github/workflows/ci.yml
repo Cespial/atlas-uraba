@@ -1,0 +1,73 @@
+name: CI — Atlas Urabá
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Test & Lint (Python 3.11)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -el {0}  # necesario para activar conda correctamente
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Cache de paquetes conda
+      # -----------------------------------------------------------------------
+      - name: Cache conda packages
+        uses: actions/cache@v4
+        with:
+          path: ~/conda_pkgs_dir
+          key: conda-${{ runner.os }}-${{ hashFiles('environment.yml') }}
+          restore-keys: |
+            conda-${{ runner.os }}-
+
+      # -----------------------------------------------------------------------
+      # Instalar Miniconda
+      # -----------------------------------------------------------------------
+      - name: Instalar Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniconda-version: "latest"
+          python-version: "3.11"
+          activate-environment: atlas-uraba
+          environment-file: environment.yml
+          use-only-tar-bz2: true   # necesario para el cache
+          auto-activate-base: false
+
+      # -----------------------------------------------------------------------
+      # Cache de paquetes pip (dentro del env conda)
+      # -----------------------------------------------------------------------
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py311-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py311-
+
+      # -----------------------------------------------------------------------
+      # Instalar paquete en modo editable con dependencias dev
+      # -----------------------------------------------------------------------
+      - name: Instalar atlas-uraba en modo editable
+        run: pip install -e ".[dev]"
+
+      # -----------------------------------------------------------------------
+      # Linting con ruff
+      # -----------------------------------------------------------------------
+      - name: Lint con ruff
+        run: ruff check src/
+
+      # -----------------------------------------------------------------------
+      # Tests con pytest
+      # -----------------------------------------------------------------------
+      - name: Ejecutar tests
+        run: pytest tests/ -v --tb=short
