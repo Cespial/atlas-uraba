@@ -59,3 +59,5 @@ Thumbs.db
 # Logs
 *.log
 logs/
+data/raw/osm/colombia-latest.osm.pbf
+data/raw/osm/uraba-latest.osm.pbf

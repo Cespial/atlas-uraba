@@ -1,74 +1,148 @@
 {
-  "Apartadó": {
-    "nodos": 2995,
-    "aristas": 8648,
-    "long_km": 946.2,
-    "intersecciones": 2492,
-    "densidad_intersecciones_por_km": 2.63,
-    "equipamientos_osm": 189,
-    "estado": "ok"
+  "05045": {
+    "codigo": "05045",
+    "municipio": "Apartadó",
+    "nodos_osm": 2995,
+    "aristas_osm": 8648,
+    "longitud_km": 946.2,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 6865,
+    "tipos_amenity": {
+      "school": 83,
+      "hospital": 13,
+      "bank": 12,
+      "community_centre": 10,
+      "fuel": 7,
+      "shelter": 5,
+      "university": 4,
+      "library": 3
+    }
   },
-  "Chigorodó": {
-    "nodos": 1430,
-    "aristas": 4054,
-    "long_km": 943.0,
-    "intersecciones": 1094,
-    "densidad_intersecciones_por_km": 1.16,
-    "equipamientos_osm": 75,
-    "estado": "ok"
+  "05147": {
+    "codigo": "05147",
+    "municipio": "Chigorodó",
+    "nodos_osm": 1430,
+    "aristas_osm": 4054,
+    "longitud_km": 943.0,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 1537,
+    "tipos_amenity": {
+      "school": 64,
+      "bank": 2,
+      "kindergarten": 1,
+      "hospital": 1,
+      "police": 1,
+      "theatre": 1,
+      "fuel": 1,
+      "place_of_worship": 1
+    }
   },
-  "Carepa": {
-    "nodos": 1508,
-    "aristas": 4176,
-    "long_km": 714.0,
-    "intersecciones": 1165,
-    "densidad_intersecciones_por_km": 1.63,
-    "equipamientos_osm": 45,
-    "estado": "ok"
+  "05120": {
+    "codigo": "05120",
+    "municipio": "Carepa",
+    "nodos_osm": 1508,
+    "aristas_osm": 4176,
+    "longitud_km": 714.0,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 1246,
+    "tipos_amenity": {
+      "school": 35,
+      "fuel": 4,
+      "pharmacy": 1,
+      "hospital": 1,
+      "university": 1
+    }
   },
-  "Turbo": {
-    "nodos": 7680,
-    "aristas": 19164,
-    "long_km": 4813.5,
-    "intersecciones": 5267,
-    "densidad_intersecciones_por_km": 1.09,
-    "equipamientos_osm": 230,
-    "estado": "ok"
+  "05837": {
+    "codigo": "05837",
+    "municipio": "Turbo",
+    "nodos_osm": 7680,
+    "aristas_osm": 19164,
+    "longitud_km": 4813.5,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 44549,
+    "tipos_amenity": {
+      "school": 138,
+      "bank": 5,
+      "kindergarten": 5,
+      "fuel": 5,
+      "pharmacy": 4,
+      "police": 4,
+      "hospital": 4,
+      "university": 3
+    }
   },
-  "Necoclí": {
-    "nodos": 4931,
-    "aristas": 11580,
-    "long_km": 3139.2,
-    "intersecciones": 3128,
-    "densidad_intersecciones_por_km": 1.0,
-    "equipamientos_osm": 136,
-    "estado": "ok"
+  "05544": {
+    "codigo": "05544",
+    "municipio": "Necoclí",
+    "nodos_osm": 4931,
+    "aristas_osm": 11580,
+    "longitud_km": 3139.2,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 21052,
+    "tipos_amenity": {
+      "school": 112,
+      "place_of_worship": 6,
+      "hospital": 4,
+      "bank": 3,
+      "pharmacy": 2,
+      "community_centre": 2,
+      "restaurant": 2,
+      "fuel": 1
+    }
   },
-  "San Pedro de Urabá": {
-    "nodos": 952,
-    "aristas": 2418,
-    "long_km": 899.1,
-    "intersecciones": 677,
-    "densidad_intersecciones_por_km": 0.75,
-    "equipamientos_osm": 119,
-    "estado": "ok"
+  "05665": {
+    "codigo": "05665",
+    "municipio": "San Pedro de Urabá",
+    "nodos_osm": 952,
+    "aristas_osm": 2418,
+    "longitud_km": 899.1,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 2594,
+    "tipos_amenity": {
+      "school": 88,
+      "kindergarten": 2,
+      "hospital": 1,
+      "college": 1,
+      "library": 1,
+      "townhall": 1,
+      "police": 1
+    }
   },
-  "San Juan de Urabá": {
-    "nodos": 699,
-    "aristas": 1694,
-    "long_km": 496.9,
-    "intersecciones": 459,
-    "densidad_intersecciones_por_km": 0.92,
-    "equipamientos_osm": 44,
-    "estado": "ok"
+  "05659": {
+    "codigo": "05659",
+    "municipio": "San Juan de Urabá",
+    "nodos_osm": 699,
+    "aristas_osm": 1694,
+    "longitud_km": 496.9,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 917,
+    "tipos_amenity": {
+      "school": 36,
+      "fuel": 2,
+      "hospital": 1,
+      "pharmacy": 1,
+      "restaurant": 1,
+      "food_court": 1
+    }
   },
-  "Arboletes": {
-    "nodos": 953,
-    "aristas": 2614,
-    "long_km": 748.5,
-    "intersecciones": 733,
-    "densidad_intersecciones_por_km": 0.98,
-    "equipamientos_osm": 96,
-    "estado": "ok"
+  "05051": {
+    "codigo": "05051",
+    "municipio": "Arboletes",
+    "nodos_osm": 953,
+    "aristas_osm": 2614,
+    "longitud_km": 748.5,
+    "densidad_intersecciones": 0,
+    "amenities_osm": 1996,
+    "tipos_amenity": {
+      "school": 82,
+      "library": 3,
+      "restaurant": 3,
+      "police": 2,
+      "hospital": 1,
+      "bank": 1,
+      "pharmacy": 1,
+      "fuel": 1
+    }
   }
 }
