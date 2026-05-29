@@ -33,6 +33,13 @@ def disaggregate_simple(
     Returns:
         GeoDataFrame de manzanas con columnas disagregadas añadidas.
     """
+    # Fuente vacía → retornar target con columnas NaN
+    if len(source) == 0:
+        result = target.copy()
+        for col in extensive_vars + intensive_vars:
+            result[col] = float("nan")
+        return result
+
     source_proj = source.to_crs("EPSG:3116")
     target_proj = target.to_crs("EPSG:3116")
 

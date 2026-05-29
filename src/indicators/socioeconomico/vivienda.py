@@ -44,9 +44,26 @@ class IndicadorCalidadVivienda(Indicator):
     def calculate(self) -> pd.Series:
         """
         Retorna el porcentaje de viviendas con materiales inadecuados por manzana.
-        Los NaN se imputan con la mediana del conjunto antes de normalizar.
+        Usa 'pct_mat_inadecuada' del CNPV 2018 (% sin acueducto + alcantarillado + energía)
+        o calcula desde columnas componentes si están disponibles.
         """
-        serie = self.manzanas.set_index("cod_manzana")["pct_mat_inadecuada"].copy()
+        mzn = self.manzanas.set_index("cod_manzana")
+
+        if "pct_mat_inadecuada" in mzn.columns:
+            serie = mzn["pct_mat_inadecuada"].copy()
+        elif all(c in mzn.columns for c in ["pct_sin_acueducto", "pct_sin_alcantarillado", "pct_sin_energia"]):
+            serie = (
+                mzn["pct_sin_acueducto"]
+                + mzn["pct_sin_alcantarillado"]
+                + mzn["pct_sin_energia"]
+            ) / 3.0
+        else:
+            raise KeyError(
+                "Se requiere 'pct_mat_inadecuada' o las tres columnas "
+                "'pct_sin_acueducto', 'pct_sin_alcantarillado', 'pct_sin_energia' "
+                "en el GeoDataFrame. Ejecutar cnpv_enricher.enriquecer_manzanas() primero."
+            )
+
         serie = serie.fillna(serie.median())
         return serie.rename(self.name)
 
@@ -75,11 +92,18 @@ class IndicadorSuficienciaVivienda(Indicator):
     def calculate(self) -> pd.Series:
         """
         Calcula promedio ponderado entre hacinamiento moderado (60%) y severo (40%).
-        Los NaN en cada columna se imputan con la mediana de esa columna.
+        Usa datos CNPV 2018: pct_hacinamiento = personas/hogar/3 y
+        pct_hacinamiento_severo = personas/hogar/5, ambos normalizados a [0,1].
         """
-        df = self.manzanas.set_index("cod_manzana")[
-            ["pct_hacinamiento", "pct_hacinamiento_severo"]
-        ].copy()
+        mzn = self.manzanas.set_index("cod_manzana")
+
+        # Calcular hacinamiento desde personas_por_hogar si no vienen directos
+        if "personas_por_hogar" in mzn.columns and "pct_hacinamiento" not in mzn.columns:
+            mzn = mzn.copy()
+            mzn["pct_hacinamiento"] = (mzn["personas_por_hogar"] / 3.0).clip(upper=1.0)
+            mzn["pct_hacinamiento_severo"] = (mzn["personas_por_hogar"] / 5.0).clip(upper=1.0)
+
+        df = mzn[["pct_hacinamiento", "pct_hacinamiento_severo"]].copy()
 
         df["pct_hacinamiento"] = df["pct_hacinamiento"].fillna(df["pct_hacinamiento"].median())
         df["pct_hacinamiento_severo"] = df["pct_hacinamiento_severo"].fillna(

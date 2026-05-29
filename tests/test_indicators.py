@@ -53,9 +53,14 @@ def test_composite_pesos_iguales():
     mzn = _make_manzanas(3)
     ind1 = DummyIndicator(mzn, [1.0, 0.5, 0.0])
     ind2 = DummyIndicator(mzn, [0.0, 0.5, 1.0])
+    # Nombres distintos: si ambos se llamaran "dummy", el DataFrame
+    # de scores solo tendría una columna y el composite sería incorrecto.
+    ind1.name = "dummy_a"
+    ind2.name = "dummy_b"
     composite = CompositeIndicator([ind1, ind2], name="test_composite")
     result = composite.run()
-    # Con pesos iguales y valores simétricos, todas las manzanas deben tener el mismo score
+    # Con pesos iguales y valores simétricos, todas las manzanas tienen
+    # el mismo score compuesto (0.5) → al normalizar → todos 0.5 → iguales
     assert result.iloc[0] == pytest.approx(result.iloc[-1], abs=1e-6)
 
 

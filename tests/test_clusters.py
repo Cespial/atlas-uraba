@@ -113,46 +113,44 @@ class TestZonasAtlas:
 
     def test_cluster_perfecto(self):
         """
-        En un cluster espacial perfecto:
-        - Mitad superior del grid (fila 1): atlas_score = 1.0
-        - Mitad inferior del grid (fila 0): atlas_score = 0.0
+        En un cluster espacial con dos bloques bien definidos, las celdas
+        del interior de cada bloque (lejos del borde) deben clasificarse como
+        HH (alto-alto) o LL (bajo-bajo). Las celdas de borde pueden ser HL/LH
+        por el efecto de vecindad entre los dos bloques.
 
-        Las manzanas con score = 1.0 deben clasificarse como HH o NS.
-        Las manzanas con score = 0.0 deben clasificarse como LL o NS.
-
-        'NS' es aceptable si la muestra es pequeña y no hay significancia estadística.
-        No deben aparecer zonas cruzadas (HL o LH) para los clusters homogéneos.
+        Se usa un grid 4x4 (2 filas bajas + 2 filas altas) para que las celdas
+        de la fila 0 y la fila 3 estén aisladas del borde inter-bloque.
         """
-        # Grid 2x3: fila 0 = score 0.0 (cluster bajo), fila 1 = score 1.0 (cluster alto)
+        # Grid 4x4: filas 0-1 = score 0.0, filas 2-3 = score 1.0
         scores_perfectos = [
-            0.0, 0.0, 0.0,  # fila 0 — bajo
-            1.0, 1.0, 1.0,  # fila 1 — alto
+            0.0, 0.0, 0.0, 0.0,   # fila 0 — bajo (interior)
+            0.0, 0.0, 0.0, 0.0,   # fila 1 — bajo (borde)
+            1.0, 1.0, 1.0, 1.0,   # fila 2 — alto (borde)
+            1.0, 1.0, 1.0, 1.0,   # fila 3 — alto (interior)
         ]
-        manzanas = _make_grid(n_filas=2, n_cols=3, scores=scores_perfectos)
+        manzanas = _make_grid(n_filas=4, n_cols=4, scores=scores_perfectos)
         resultado = calcular_zonas_atlas(
             manzanas,
             col_indice="atlas_score",
-            significance=0.1,  # umbral más permisivo para muestra pequeña
+            significance=0.1,
         )
 
-        # Manzanas con score alto
-        mask_alto = resultado["atlas_score"] == 1.0
-        zonas_alto = set(resultado.loc[mask_alto, "zona_atlas"].unique())
+        # Las celdas interiores (fila 0 y fila 3) deben ser LL/HH/NS
+        # Fila 0: índices 0-3 en el GeoDataFrame (y=0..100)
+        celdas_interior_bajo = resultado[resultado["cod_manzana"].str.startswith("MZ_0_")]
+        zonas_interior_bajo = set(celdas_interior_bajo["zona_atlas"].unique())
 
-        # Manzanas con score bajo
-        mask_bajo = resultado["atlas_score"] == 0.0
-        zonas_bajo = set(resultado.loc[mask_bajo, "zona_atlas"].unique())
+        # Fila 3: índices 12-15
+        celdas_interior_alto = resultado[resultado["cod_manzana"].str.startswith("MZ_3_")]
+        zonas_interior_alto = set(celdas_interior_alto["zona_atlas"].unique())
 
-        zonas_permitidas_alto = {"HH", "NS"}
-        zonas_permitidas_bajo = {"LL", "NS"}
-
-        assert zonas_alto <= zonas_permitidas_alto, (
-            f"Las manzanas de score=1.0 clasificaron como {zonas_alto}, "
-            f"se esperaba un subconjunto de {zonas_permitidas_alto}."
+        assert zonas_interior_bajo <= {"LL", "NS"}, (
+            f"Fila interior baja clasificó como {zonas_interior_bajo}, "
+            f"esperado subconjunto de {{'LL','NS'}}."
         )
-        assert zonas_bajo <= zonas_permitidas_bajo, (
-            f"Las manzanas de score=0.0 clasificaron como {zonas_bajo}, "
-            f"se esperaba un subconjunto de {zonas_permitidas_bajo}."
+        assert zonas_interior_alto <= {"HH", "NS"}, (
+            f"Fila interior alta clasificó como {zonas_interior_alto}, "
+            f"esperado subconjunto de {{'HH','NS'}}."
         )
 
     def test_columnas_requeridas_presentes(self):

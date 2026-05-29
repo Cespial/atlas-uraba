@@ -48,9 +48,19 @@ class IndicadorResilienciaHogares(Indicator):
 
     def calculate(self) -> pd.Series:
         """
-        Retorna el porcentaje de hogares monoparentales con hijos por manzana.
-        Los NaN se imputan con la mediana del conjunto antes de normalizar.
+        Retorna el proxy de monoparentalidad por manzana.
+        Usa 'pct_monoparental' del CNPV 2018 (hogares/personas ratio)
+        o 'hogares_por_persona' como fallback.
         """
-        serie = self.manzanas.set_index("cod_manzana")["pct_monoparental"].copy()
-        serie = serie.fillna(serie.median())
+        mzn = self.manzanas.set_index("cod_manzana")
+        col = next(
+            (c for c in ["pct_monoparental", "hogares_por_persona"] if c in mzn.columns),
+            None,
+        )
+        if col is None:
+            raise KeyError(
+                "Se requiere 'pct_monoparental' o 'hogares_por_persona'. "
+                "Ejecutar cnpv_enricher.enriquecer_manzanas() primero."
+            )
+        serie = mzn[col].copy().fillna(mzn[col].median())
         return serie.rename(self.name)

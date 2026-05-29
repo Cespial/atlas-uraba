@@ -46,9 +46,19 @@ class IndicadorEscolaridadJefeHogar(Indicator):
 
     def calculate(self) -> pd.Series:
         """
-        Retorna el promedio de años de escolaridad del jefe de hogar por manzana.
-        Los NaN se imputan con la mediana del conjunto antes de normalizar.
+        Retorna el nivel educativo ponderado por manzana.
+        Usa 'escolaridad_ponderada' del CNPV 2018 (primaria=1..posgrado=4)
+        o 'esc_jefe_hogar' si está disponible.
         """
-        serie = self.manzanas.set_index("cod_manzana")["esc_jefe_hogar"].copy()
-        serie = serie.fillna(serie.median())
+        mzn = self.manzanas.set_index("cod_manzana")
+        col = next(
+            (c for c in ["escolaridad_ponderada", "esc_jefe_hogar"] if c in mzn.columns),
+            None,
+        )
+        if col is None:
+            raise KeyError(
+                "Se requiere 'escolaridad_ponderada' o 'esc_jefe_hogar'. "
+                "Ejecutar cnpv_enricher.enriquecer_manzanas() primero."
+            )
+        serie = mzn[col].copy().fillna(mzn[col].median())
         return serie.rename(self.name)
